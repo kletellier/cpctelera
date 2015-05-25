@@ -28,7 +28,7 @@ typedef struct {
 } Person;
 
 //
-// Function definitions
+// Function declarations
 //
        void do_enemy_ai_c(Person* enemy); // Implemented in C    (in ai.c)
 extern void update_animation(Person* p);  // Implemented in ASM  (in anim.s) 
