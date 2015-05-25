@@ -55,7 +55,6 @@ ai_person_2:
 .globl cpct_isKeyPressed_asm  
 .globl cpct_scanKeyboard_f_asm 
 .globl cpct_drawStringM1_f_asm
-.globl cpct_disableFirmware_asm
 
 ;; Other C functions defined in other files
 .globl _do_enemy_ai_c
@@ -66,9 +65,6 @@ ai_person_2:
 ;;    _main:: global symbol is required for correctly compiling and linking
 ;;
 _main::
-   ;; Disable firmware to prevent it from interfering with string drawing
-   call cpct_disableFirmware_asm
-
    ;; Print a string to ask the user for pressing Space
    ld   de, #0xC000    ;; DE = Pointer to pixel 0,0 at the screen video memory 
    ld   hl, #str_press ;; HL = Pointer to the string 
