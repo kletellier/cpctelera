@@ -101,6 +101,28 @@ void wait4Key(cpct_keyID key) {
    while( cpct_isKeyPressed(key) );
 }
 
+#ifdef DEBUGPERF
+u32 vscounts[256];
+u8 vsci;
+
+// Explaining calculation of available cycles per Frame
+//======================================================
+// 1 Frame = 19968 microseconds = 79872 cpu cycles
+// 1/6 cycles are used by Gate Array to draw the screen
+// 1/6 * 79872 = 13312
+// 79872 - 13312 = 66560 cycles available per frame
+//
+#define CYCLESPERFRAME  (u32)66560
+
+u32 calculateUsedCycles(u32 loops) {
+   if (loops)
+      return CYCLESPERFRAME - (22 + 34 * loops);
+   else
+      return 0;
+}
+
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // Plays a complete game, until the death of the main character
 //
@@ -113,6 +135,61 @@ u16 game(u16 hiscore) {
    initializeEntities();            // Set up initial entities
    c = getCharacter();              // Get the main character
 
+#ifdef DEBUGPERF
+   vsci = 0;
+   do {
+      updateUser(c);                // Update user status (depending on keypresses)
+
+      vscounts[vsci++] = cpct_count2VSYNC();
+
+      scrollWorld();                // Update world scrolling
+
+      vscounts[vsci++] = cpct_count2VSYNC();
+
+      alive = updateCharacter(c);   // Update character status     
+
+      vscounts[vsci++] = cpct_count2VSYNC();
+
+      drawAll();                    // ..draw everything
+
+      vscounts[vsci++] = cpct_count2VSYNC();
+   } while (vsci);
+
+   {
+      u16 k = 0;
+      u8  str[40];
+      u8* pvmem=g_SCR_VMEM;
+      #define SCRLINESIZE  0x050
+      
+      cpct_setPALColour(0, 20); // Black
+      cpct_setPALColour(1, 22); // Green
+      cpct_setPALColour(2,  0); // White
+      cpct_setPALColour(3, 28); // Red
+      cpct_setVideoMode(1);
+      cpct_clearScreen(0);
+      cpct_drawStringM1(" C # total [keybo|scrol|physi|draw ]", pvmem, 0, 2);
+      while (k < 256) {
+         u32 keyb = calculateUsedCycles(vscounts[k+0]);
+         u32 scro = calculateUsedCycles(vscounts[k+1]);
+         u32 phys = calculateUsedCycles(vscounts[k+2]);
+         u32 draw = calculateUsedCycles(vscounts[k+3]);
+         u32 tot = keyb + scro + phys + draw;
+         sprintf(str, "%2u # %5lu=[%5lu|%5lu|%5lu|%5lu]", k/4, tot, keyb, scro, phys, draw);
+         pvmem += SCRLINESIZE;
+         cpct_drawStringM1(str, pvmem, 1, 0);
+         if (k == 92 || k == 188) {
+            wait4Key(Key_Space);
+            cpct_clearScreen(0);
+            pvmem = g_SCR_VMEM;
+            cpct_drawStringM1(" C # total [keybo|scrol|physi|draw ]", pvmem, 0, 2);
+         }
+         k += 4;
+      }
+      wait4Key(Key_Space);
+   }
+
+#else
+
    /////
    // Main Game Loop (while character is alive)
    /////
@@ -124,9 +201,12 @@ u16 game(u16 hiscore) {
       drawAll();                    // ..draw everything
    }
 
+#endif
+
    // Return final score, at the end of the game
    return getScore();
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Shows messages at the end of the game and asks for keypress for starting again
